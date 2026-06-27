@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --slime-primary: #22c55e;
+    --slime-dark: #14532d;
+    --obsidian: #0e0e1c;
+    --obsidian-deep: #07070f;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-obsidian-950 text-slate-100 antialiased;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, rgba(34, 197, 94, 0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(34, 197, 94, 0.03) 0%, transparent 50%);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #07070f;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #22c55e40;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #22c55e70;
+  }
+}
+
+@layer components {
+  .slime-glow {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.25), 0 0 60px rgba(34, 197, 94, 0.1);
+  }
+
+  .slime-border {
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  }
+
+  .glass-card {
+    background: rgba(14, 14, 28, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(34, 197, 94, 0.15);
+  }
+
+  .pixel-text {
+    font-family: 'Press Start 2P', monospace;
+    line-height: 1.8;
+  }
+
+  .chat-bubble-user {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    border-radius: 18px 18px 4px 18px;
+  }
+
+  .chat-bubble-ai {
+    background: rgba(18, 18, 36, 0.9);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 18px 18px 18px 4px;
+  }
+
+  .input-slime {
+    @apply bg-obsidian-900 border border-slime-800/40 text-slate-100 rounded-xl px-4 py-3;
+    @apply focus:outline-none focus:border-slime-500 focus:ring-2 focus:ring-slime-500/20;
+    @apply transition-all duration-200 placeholder-slate-500;
+  }
+
+  .btn-slime {
+    @apply bg-slime-600 hover:bg-slime-500 text-white font-semibold rounded-xl px-6 py-3;
+    @apply transition-all duration-200 active:scale-95;
+    @apply shadow-lg hover:shadow-slime;
+  }
+
+  .btn-ghost {
+    @apply border border-slime-800/50 hover:border-slime-500 text-slime-400 hover:text-slime-300;
+    @apply rounded-xl px-6 py-3 font-medium transition-all duration-200 hover:bg-slime-950/50;
+  }
+
+  /* Markdown content styles */
+  .prose-slime {
+    @apply text-slate-200 leading-relaxed;
+  }
+
+  .prose-slime strong {
+    @apply text-slime-400 font-semibold;
+  }
+
+  .prose-slime code {
+    @apply bg-obsidian-800 text-slime-300 px-1.5 py-0.5 rounded text-sm font-mono;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  }
+
+  .prose-slime pre {
+    @apply bg-obsidian-900 rounded-xl p-4 overflow-x-auto my-3;
+    border: 1px solid rgba(34, 197, 94, 0.15);
+  }
+
+  .prose-slime pre code {
+    @apply bg-transparent p-0 border-0 text-slime-300;
+  }
+
+  .prose-slime ul {
+    @apply list-none space-y-1 my-2;
+  }
+
+  .prose-slime ul li::before {
+    content: '▸ ';
+    @apply text-slime-500;
+  }
+
+  .prose-slime ol {
+    @apply list-decimal list-inside space-y-1 my-2;
+  }
+
+  .prose-slime h1, .prose-slime h2, .prose-slime h3 {
+    @apply text-slime-300 font-semibold mt-4 mb-2;
+  }
+
+  .prose-slime a {
+    @apply text-slime-400 underline hover:text-slime-300;
+  }
+
+  .prose-slime p {
+    @apply mb-2;
+  }
+}
+
+/* Particle animation */
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: particle var(--duration, 8s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  left: var(--x, 50%);
+  opacity: 0;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+/* Typing indicator */
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+/* Shimmer loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #1a1a2e 25%, #22c55e10 50%, #1a1a2e 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
