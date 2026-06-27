@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ChatRequest } from "@/types";
-import { ai } from "@/lib/gemini";
+import { openrouter } from "@/lib/openrouter";
 
 const SLIMEHELPER_SYSTEM_PROMPT = `You are SlimeHelp-per 🟢, the ultimate AI assistant for Minecraft Slimefun4 plugin. You are enthusiastic, knowledgeable, and friendly — like a seasoned Slimefun veteran who loves helping both new and experienced players.
 
@@ -62,7 +62,8 @@ Always be accurate. If you're unsure about something, say so and suggest checkin
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequest = await req.json();
-    const { message, sessionId, userId, level, history } = body;
+
+    const { message, sessionId, userId, history, level } = body;
 
     if (!message || !sessionId || !userId) {
       return NextResponse.json(
@@ -73,9 +74,9 @@ export async function POST(req: NextRequest) {
 
     const levelInstruction =
       level === "beginner"
-        ? "\n\n[USER LEVEL: BEGINNER — Use simple, welcoming language with lots of context]"
+        ? "\nUser Level: Beginner. Explain simply."
         : level === "advanced"
-          ? "\n\n[USER LEVEL: ADVANCED — Be technical, efficient, and assume prior knowledge]"
+          ? "\nUser Level: Advanced. Be technical."
           : "";
 
     // Save user message
@@ -90,44 +91,39 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
-    // Build conversation
-    const conversation = [
+    // OpenRouter messages
+    const messages: any[] = [
       {
-        role: "user",
-        parts: [
-          {
-            text: SLIMEHELPER_SYSTEM_PROMPT + levelInstruction,
-          },
-        ],
+        role: "system",
+        content: SLIMEHELPER_SYSTEM_PROMPT + levelInstruction,
       },
-      ...history.map((h) => ({
-        role: h.role === "assistant" ? "model" : "user",
-        parts: [{ text: h.content }],
+
+      ...history.map((msg) => ({
+        role: msg.role === "assistant" ? "assistant" : "user",
+        content: msg.content,
       })),
+
       {
         role: "user",
-        parts: [{ text: message }],
+        content: message,
       },
     ];
 
-    let response;
+    let completion;
 
-    // ============================
-    // Gemini API
-    // ============================
     try {
-      response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: conversation,
+      completion = await openrouter.chat.completions.create({
+        model: "google/gemma-4-26b-a4b-it:free",
+        messages,
       });
     } catch (error: any) {
-      console.error("Gemini Error:", error);
+      console.error("OpenRouter Error:", error);
 
       if (error.status === 429) {
         return NextResponse.json(
           {
             error:
-              "🚫 Gemini API quota exceeded. Please wait about a minute before trying again, or upgrade your Gemini API plan.",
+              "OpenRouter quota exceeded. Please wait a moment before trying again.",
           },
           { status: 429 },
         );
@@ -142,7 +138,8 @@ export async function POST(req: NextRequest) {
     }
 
     const assistantMessage =
-      response.text || "Sorry, I couldn't generate a response.";
+      completion.choices?.[0]?.message?.content ??
+      "Sorry, I couldn't generate a response.";
 
     // Save assistant message
     const asstMsgId = `msg_${Date.now()}_asst`;
@@ -156,7 +153,7 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
-    // Update chat session
+    // Update session title
     const sessionTitle =
       history.length === 0
         ? message.substring(0, 60) + (message.length > 60 ? "..." : "")
