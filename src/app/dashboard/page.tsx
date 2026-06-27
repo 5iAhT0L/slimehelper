@@ -155,7 +155,10 @@ export default function DashboardPage() {
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+
+        if (!res.ok) {
+          throw new Error(data.error || "Something went wrong.");
+        }
 
         const aiMsg: Message = {
           id: data.messageId || generateId(),
@@ -164,6 +167,7 @@ export default function DashboardPage() {
           createdAt: new Date().toISOString(),
           sessionId: sessionId!,
         };
+
         setMessages((prev) => [...prev, aiMsg]);
 
         // Update session title in sidebar after first message
@@ -180,8 +184,21 @@ export default function DashboardPage() {
             ),
           );
         }
-      } catch (err) {
-        toast.error("SlimeHelp-per hit an error. Please try again!");
+      } catch (err: any) {
+        console.error(err);
+
+        const errorMessage: Message = {
+          id: generateId(),
+          role: "assistant",
+          content:
+            err.message || "⚠️ SlimeHelp-per encountered an unexpected error.",
+          createdAt: new Date().toISOString(),
+          sessionId: sessionId!,
+        };
+
+        setMessages((prev) => [...prev, errorMessage]);
+
+        toast.error(err.message);
       } finally {
         setAiLoading(false);
       }

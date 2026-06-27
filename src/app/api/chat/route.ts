@@ -78,8 +78,9 @@ export async function POST(req: NextRequest) {
           ? "\n\n[USER LEVEL: ADVANCED — Be technical, efficient, and assume prior knowledge]"
           : "";
 
-    // Save user message to Supabase
+    // Save user message
     const userMsgId = `msg_${Date.now()}_user`;
+
     await supabaseAdmin().from("messages").insert({
       id: userMsgId,
       session_id: sessionId,
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
-    //Generate AI response using Gemini API
+    // Build conversation
     const conversation = [
       {
         role: "user",
@@ -109,18 +110,43 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: conversation,
-    });
+    let response;
 
-    console.log(response.text);
+    // ============================
+    // Gemini API
+    // ============================
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: conversation,
+      });
+    } catch (error: any) {
+      console.error("Gemini Error:", error);
+
+      if (error.status === 429) {
+        return NextResponse.json(
+          {
+            error:
+              "🚫 Gemini API quota exceeded. Please wait about a minute before trying again, or upgrade your Gemini API plan.",
+          },
+          { status: 429 },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: "Failed to generate AI response.",
+        },
+        { status: 500 },
+      );
+    }
 
     const assistantMessage =
       response.text || "Sorry, I couldn't generate a response.";
 
-    // Save assistant message to Supabase
+    // Save assistant message
     const asstMsgId = `msg_${Date.now()}_asst`;
+
     await supabaseAdmin().from("messages").insert({
       id: asstMsgId,
       session_id: sessionId,
@@ -130,7 +156,7 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
-    // Update session's updated_at and title (if first message)
+    // Update chat session
     const sessionTitle =
       history.length === 0
         ? message.substring(0, 60) + (message.length > 60 ? "..." : "")
@@ -150,8 +176,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Chat API error:", error);
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error.",
+      },
       { status: 500 },
     );
   }
