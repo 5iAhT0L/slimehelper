@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
-import { ChatRequest } from '@/types'
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { ChatRequest } from "@/types";
+import { ai } from "@/lib/gemini";
 
 const SLIMEHELPER_SYSTEM_PROMPT = `You are SlimeHelp-per 🟢, the ultimate AI assistant for Minecraft Slimefun4 plugin. You are enthusiastic, knowledgeable, and friendly — like a seasoned Slimefun veteran who loves helping both new and experienced players.
 
@@ -56,92 +57,102 @@ You are deeply knowledgeable about ALL Slimefun4 features including:
 - Use bullet points for feature lists
 - Include crafting recipes when relevant
 
-Always be accurate. If you're unsure about something, say so and suggest checking the official Slimefun wiki at https://github.com/Slimefun/Slimefun4/wiki`
+Always be accurate. If you're unsure about something, say so and suggest checking the official Slimefun wiki at https://github.com/Slimefun/Slimefun4/wiki`;
 
 export async function POST(req: NextRequest) {
   try {
-    const body: ChatRequest = await req.json()
-    const { message, sessionId, userId, level, history } = body
+    const body: ChatRequest = await req.json();
+    const { message, sessionId, userId, level, history } = body;
 
     if (!message || !sessionId || !userId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
-    const levelInstruction = level === 'beginner'
-      ? '\n\n[USER LEVEL: BEGINNER — Use simple, welcoming language with lots of context]'
-      : level === 'advanced'
-      ? '\n\n[USER LEVEL: ADVANCED — Be technical, efficient, and assume prior knowledge]'
-      : ''
+    const levelInstruction =
+      level === "beginner"
+        ? "\n\n[USER LEVEL: BEGINNER — Use simple, welcoming language with lots of context]"
+        : level === "advanced"
+          ? "\n\n[USER LEVEL: ADVANCED — Be technical, efficient, and assume prior knowledge]"
+          : "";
 
     // Save user message to Supabase
-    const userMsgId = `msg_${Date.now()}_user`
-    await supabaseAdmin().from('messages').insert({
+    const userMsgId = `msg_${Date.now()}_user`;
+    await supabaseAdmin().from("messages").insert({
       id: userMsgId,
       session_id: sessionId,
       user_id: userId,
-      role: 'user',
+      role: "user",
       content: message,
       created_at: new Date().toISOString(),
-    })
+    });
 
-    // Build conversation history for Claude
-    const messages = [
-      ...history.map(h => ({ role: h.role, content: h.content })),
-      { role: 'user' as const, content: message }
-    ]
-
-    // Call Anthropic API
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
+    //Generate AI response using Gemini API
+    const conversation = [
+      {
+        role: "user",
+        parts: [
+          {
+            text: SLIMEHELPER_SYSTEM_PROMPT + levelInstruction,
+          },
+        ],
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        system: SLIMEHELPER_SYSTEM_PROMPT + levelInstruction,
-        messages,
-      }),
-    })
+      ...history.map((h) => ({
+        role: h.role === "assistant" ? "model" : "user",
+        parts: [{ text: h.content }],
+      })),
+      {
+        role: "user",
+        parts: [{ text: message }],
+      },
+    ];
 
-    if (!anthropicRes.ok) {
-      const err = await anthropicRes.text()
-      console.error('Anthropic error:', err)
-      return NextResponse.json({ error: 'AI service error' }, { status: 500 })
-    }
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: conversation,
+    });
 
-    const data = await anthropicRes.json()
-    const assistantMessage = data.content[0]?.text || 'Sorry, I had trouble generating a response!'
+    console.log(response.text);
+
+    const assistantMessage =
+      response.text || "Sorry, I couldn't generate a response.";
 
     // Save assistant message to Supabase
-    const asstMsgId = `msg_${Date.now()}_asst`
-    await supabaseAdmin().from('messages').insert({
+    const asstMsgId = `msg_${Date.now()}_asst`;
+    await supabaseAdmin().from("messages").insert({
       id: asstMsgId,
       session_id: sessionId,
       user_id: userId,
-      role: 'assistant',
+      role: "assistant",
       content: assistantMessage,
       created_at: new Date().toISOString(),
-    })
+    });
 
     // Update session's updated_at and title (if first message)
-    const sessionTitle = history.length === 0
-      ? message.substring(0, 60) + (message.length > 60 ? '...' : '')
-      : undefined
+    const sessionTitle =
+      history.length === 0
+        ? message.substring(0, 60) + (message.length > 60 ? "..." : "")
+        : undefined;
 
-    await supabaseAdmin().from('chat_sessions').update({
-      updated_at: new Date().toISOString(),
-      ...(sessionTitle && { title: sessionTitle }),
-    }).eq('id', sessionId)
+    await supabaseAdmin()
+      .from("chat_sessions")
+      .update({
+        updated_at: new Date().toISOString(),
+        ...(sessionTitle && { title: sessionTitle }),
+      })
+      .eq("id", sessionId);
 
     return NextResponse.json({
       message: assistantMessage,
       messageId: asstMsgId,
-    })
+    });
   } catch (error) {
-    console.error('Chat API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error("Chat API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
