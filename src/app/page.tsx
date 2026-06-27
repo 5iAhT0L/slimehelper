@@ -248,6 +248,13 @@ export default function HomePage() {
           SlimeHelp-per — An AI guide for Slimefun4 Minecraft Plugin.
           Not affiliated with the official Slimefun project.
         </p>
+        <p className="text-slate-600 text-sm mt-1">
+          This is a fan-made project and is not affiliated with the official Slimefun project.
+          Happy made ❤️ by <a href="https://www.instagram.com/zahwan_off/" className="text-slime-400 hover:underline">Zahwan :D or AKA Diqyyyy</a>.
+        </p>
+               <p className="text-slate-600 text-sm mt-1">
+          © {new Date().getFullYear()} SlimeHelp-per. All rights reserved.
+        </p>
       </footer>
     </div>
   )
